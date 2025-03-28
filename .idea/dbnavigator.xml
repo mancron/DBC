@@ -31,9 +31,7 @@
     <last-used-providers />
   </component>
   <component name="DBNavigator.Project.DatabaseFileManager">
-    <open-files>
-      <object connection-id="aecf5281-f90c-48cd-b992-18c197f4eb2a" object-ref="consoles/danawa" />
-    </open-files>
+    <open-files />
   </component>
   <component name="DBNavigator.Project.DatabaseSessionManager">
     <connection id="aecf5281-f90c-48cd-b992-18c197f4eb2a" />
