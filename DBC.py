@@ -33,6 +33,7 @@ def insert_csv_to_db(file_path):
         print(f"파일 없음: {file_path}")
         return
 
+
     try:
         with open(file_path, encoding="utf-8") as file:
             reader = csv.reader(file)
