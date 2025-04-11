@@ -7,94 +7,116 @@ import platform
 import pickle
 import os
 
-# DB에서 데이터 불러오기
-def load_data():
+# DB에서 제품 데이터 불러오기
+def load_data(table_name):
     conn = get_connection()
-    query = "SELECT name, date, price FROM product_prices"
+    query = f"SELECT name, date, price FROM {table_name}"
     df = pd.read_sql(query, conn)
     conn.close()
     return df
 
-# 로그 변환 포함한 전처리
-def preprocess(df):
-    df = df[df['price'] > 0].copy()  # 로그 변환을 위해 0보다 큰 값만 사용
+# 그래프 그리기: 실제 + 예측
+def plot_actual_and_predicted(df, model, product_name, days=30):
+    df = df[(df['name'] == product_name) & (df['price'] > 0)].copy()
     df['date'] = pd.to_datetime(df['date'])
-    df['date_int'] = df['date'].astype(int) / 10 ** 9
-    df['name'] = df['name'].astype('category').cat.codes
-    X = df[['name', 'date_int']]
-    y = np.log(df['price'])  # 로그 변환
-    return X, y
+    df = df.sort_values('date')
 
-# 실제 가격 시각화
-def plot_actual_prices(df, product_name):
-    df = df[(df['name'] == product_name) & (df['price'] > 0)].copy()    # 해당하는 상품만 골라냄
-    df['date'] = pd.to_datetime(df['date']) # 시계열 데이터로 사용하기 위해 타입 변환
-    df = df.sort_values('date') # 오름차순 정렬
+    if df.empty:
+        print(f"{product_name}에 대한 유효한 데이터가 없습니다.")
+        return
+
+    start_date = df['date'].min()
+    latest_date = df['date'].max()
+
+    # 실제 데이터 전처리
+    name_category = df['name'].astype('category')
+    product_code = name_category.cat.codes.iloc[0]
+
+    df['date_int'] = df['date'].astype(int) / 10 ** 9
+    df['year'] = df['date'].dt.year
+    df['month'] = df['date'].dt.month
+    df['day'] = df['date'].dt.day
+    df['dayofweek'] = df['date'].dt.dayofweek
+    df['weekofyear'] = df['date'].dt.isocalendar().week.astype(int)
+    df['name'] = product_code
+
+    features = ['name', 'date_int', 'year', 'month', 'day', 'dayofweek', 'weekofyear']
+    X_actual = df[features]
+    y_actual = df['price']
+
+    # 미래 날짜 생성
+    future_dates = pd.date_range(start=latest_date + timedelta(days=1), periods=days)
+    future_df = pd.DataFrame({'date': future_dates})
+    future_df['date_int'] = future_df['date'].astype(int) / 10 ** 9
+    future_df['year'] = future_df['date'].dt.year
+    future_df['month'] = future_df['date'].dt.month
+    future_df['day'] = future_df['date'].dt.day
+    future_df['dayofweek'] = future_df['date'].dt.dayofweek
+    future_df['weekofyear'] = future_df['date'].dt.isocalendar().week.astype(int)
+    future_df['name'] = product_code
+
+    X_future = future_df[features]
+    log_preds = model.predict(X_future)
+    future_preds = np.exp(log_preds)
+
+    # 시각화
     plt.figure(figsize=(10, 5))
-    plt.plot(df['date'], df['price'], marker='o', linestyle='-')
-    plt.title(f"실제 가격 추이 - {product_name}")
+    plt.plot(df['date'], y_actual, label="실제 가격", linestyle='-')
+    plt.plot(future_dates, future_preds, label="예측 가격", linestyle='--', color='orange')
+    plt.title(f"{product_name} 가격 추이 및 향후 {days}일 예측\n(데이터 시작일: {start_date.date()}, 마지막일: {latest_date.date()})")
     plt.xlabel("날짜")
     plt.ylabel("가격")
     plt.grid(True)
+    plt.legend()
     plt.tight_layout()
     plt.show()
 
-# 1개월 예측 함수
-def predict_next_month(df, model, product_name, days=30):
-    df['date'] = pd.to_datetime(df['date'])
-    latest_date = df['date'].max()  # 해당 품목의 가장 최근 데이터 (해당 기간 이후부터 예측)
-
-    # name_code 추출
-    name_category = df['name'].astype('category')
-    product_code = name_category.cat.codes[df['name'] == product_name].iloc[0]  # 정수로 변환된 품목의 데이터를 가져옴
-
-    # 미래 날짜 생성 및 예측용 DataFrame 구성
-    future_dates = pd.date_range(start=latest_date + timedelta(days=1), periods=days)   # 가장 최근 데이터 이후의 날짜 생성
-    future_df = pd.DataFrame({
-        'name': [product_code] * days,
-        'date_int': future_dates.astype(int) / 10 ** 9  # 날짜를 정수로 변환 (형식 일치화)
-    })
-
-    # 예측 및 로그 역변환
-    log_predictions = model.predict(future_df)
-    predictions = np.exp(log_predictions)  # 로그 복원
-
-    # 결과 시각화
-    plt.figure(figsize=(10, 5))
-    plt.plot(future_dates, predictions, marker='o', linestyle='--', color='orange')
-    plt.title(f"{product_name} - 향후 {days}일 가격 예측")
-    plt.xlabel("예측 날짜")
-    plt.ylabel("예상 가격")
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
-
+# 실행
 if __name__ == "__main__":
-    # 한글 폰트 설정
     if platform.system() == 'Windows':
         plt.rcParams['font.family'] = 'Malgun Gothic'
     else:
         plt.rcParams['font.family'] = 'AppleGothic'
     plt.rcParams['axes.unicode_minus'] = False
 
-    test_product = input("\n예측할 제품 이름을 입력하세요: ")
-    # 선택한 제품만 로드 및 전처리
-    df = load_data()
-    if test_product not in df['name'].unique():
-        print(f"[오류] '{test_product}'는 데이터베이스에 존재하지 않습니다.")
+    table_options = {
+        "1": "vga_price",
+        "2": "cpu_price",
+        "3": "mboard_price",
+        "4": "power_price"
+    }
+
+    print("예측할 제품의 카테고리를 선택하세요:")
+    print("1. VGA\n2. CPU\n3. MainBoard\n4. Power")
+    choice = input("번호 입력: ").strip()
+
+    if choice not in table_options:
+        print("올바른 번호를 선택하세요.")
         exit()
 
-    # 로그 적용된 모델 로드
-    model_filename = f"xgb_model_{test_product.replace(' ', '_')}.pkl"  # 공백을 _로 변환
+    table_name = table_options[choice]
+    df = load_data(table_name)
+
+    product_name = input("\n예측할 제품 이름을 입력하세요: ").strip()
+
+    if product_name not in df['name'].unique():
+        print(f"'{product_name}'는 데이터베이스에 존재하지 않습니다.")
+        exit()
+
+    model_filename = f"xgb_model_{product_name.replace(' ', '_')}.pkl"
     if not os.path.exists(model_filename):
-        print(f"[오류] '{model_filename}' 모델 파일이 존재하지 않습니다. 먼저 학습을 진행하세요.")
+        print(f"'{model_filename}' 모델 파일이 존재하지 않습니다. 먼저 학습을 진행하세요.")
         exit()
 
     with open(model_filename, "rb") as f:
         model = pickle.load(f)
 
-    # 실제 가격 그래프
-    plot_actual_prices(df, test_product)
+    # 사용자에게 예측일 수 입력 받기
+    days_input = input("\n예측할 일 수를 입력하세요(기본값=30): ").strip()
+    if days_input.isdigit():
+        days = int(days_input)
+    else:
+        print("기본값(30일)으로 설정")
+        days = 30
 
-    # 향후 30일 예측 그래프
-    predict_next_month(df, model, test_product)
+    plot_actual_and_predicted(df, model, product_name, days=days)

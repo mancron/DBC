@@ -3,8 +3,9 @@ import numpy as np
 import xgboost as xgb
 import pickle
 import mysql.connector
+from sklearn.model_selection import train_test_split
 
-# get_connection 함수 직접 정의
+# 연결 함수
 def get_connection():
     return mysql.connector.connect(
         host="localhost",
@@ -13,69 +14,96 @@ def get_connection():
         database="danawa_crawler_data"
     )
 
-# DB에서 데이터 불러오기 (전체 데이터 / 개별학습 X)
-def load_data():
+# 선택한 카테고리 테이블에서 데이터 불러오기
+def load_data(table_name):
     conn = get_connection()
-    query = "SELECT name, date, price FROM product_prices"
+    query = f"SELECT name, date, price FROM {table_name}"
     df = pd.read_sql(query, conn)
     conn.close()
     return df
 
-# 전처리
+# 전처리 (날짜 관련 피처 확장)
 def preprocess(df):
-    df['date'] = pd.to_datetime(df['date']) # 컬럼을 날짜 형식으로 변환
-    df['date_int'] = df['date'].astype(int) / 10 ** 9 # 학습을 위해 날짜를 수치형으로 다시 변환
-    df['name'] = df['name'].astype('category').cat.codes    # 학습을 위해 상품 이름을 정수코드로 변환
-    df = df[df['price'] > 0]  # 로그 변환을 위해 0보다 큰 가격만 사용
-    y_log = np.log(df['price'])  # 로그 변환된 y (여러 데이터의 변동량 학습을 위해 / 복수 데이터 학습은 아직 구현X)
-    return df[['name', 'date_int']], y_log
+    df['date'] = pd.to_datetime(df['date'])
+    df = df[df['price'] > 0].copy()
 
-# 학습
+    df['year'] = df['date'].dt.year
+    df['month'] = df['date'].dt.month
+    df['day'] = df['date'].dt.day
+    df['dayofweek'] = df['date'].dt.dayofweek
+    df['weekofyear'] = df['date'].dt.isocalendar().week.astype(int)
+    df['date_int'] = df['date'].astype(int) / 10 ** 9
+    df['name'] = df['name'].astype('category').cat.codes
+
+    features = ['name', 'date_int', 'year', 'month', 'day', 'dayofweek', 'weekofyear']
+    y_log = np.log(df['price'])
+
+    return df[features], y_log
+
+# 모델 학습
 def train_xgboost(X, y):
+    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+
     model = xgb.XGBRegressor(
-        objective='reg:squarederror',   # 손실 최소화 학습 / 일반적 수치 예측에 주로 사용
-        n_estimators=100,
-        learning_rate=0.1,
-        max_depth=6
+        objective='reg:squarederror',
+        n_estimators=500,
+        learning_rate=0.05,
+        max_depth=4,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        random_state=42
     )
-    model.fit(X, y)
+    model.set_params(early_stopping_rounds=20)
+    model.fit(
+        X_train, y_train,
+        eval_set=[(X_val, y_val)],
+        verbose=False
+    )
     return model
 
-# 전체 상품이름 출력(확인용)
-def get_unique_product_names():
+# 고유한 제품명 가져오기
+def get_unique_product_names(table_name):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT DISTINCT name FROM product_prices")
+    cursor.execute(f"SELECT DISTINCT name FROM {table_name}")
     names = [row[0] for row in cursor.fetchall()]
     conn.close()
     return names
 
 # 실행
 if __name__ == "__main__":
+    table_options = {
+        "1": "vga_price",
+        "2": "cpu_price",
+        "3": "mboard_price",
+        "4": "power_price"
+    }
 
-    # 물품의 이름 리스트 출력
-    names = get_unique_product_names()
-    print("물품 전체의 수량인", len(names), "개의 고유한 제품명:")
-    for name in names:
+    print("카테고리를 선택하세요:")
+    print("1. VGA\n2. CPU\n3. MainBoard\n4. Power")
+    choice = input("번호 입력: ").strip()
+
+    if choice not in table_options:
+        print("올바른 번호를 선택하세요.")
+        exit()
+
+    table_name = table_options[choice]
+    df = load_data(table_name)
+    product_names = get_unique_product_names(table_name)
+
+    print(f"\n선택된 카테고리 '{table_name}'의 제품 수: {len(product_names)}")
+    for name in product_names:
         print("-", name)
 
-    # 사용자로부터 학습할 제품명을 입력 받음
-    selected_name = input("\n학습할 제품명을 정확히 입력하세요: ")
-
-    df = load_data()
-
-    # 선택한 제품만 필터링
-    df = df[df['name'] == selected_name]  # 개별 학습
+    selected_name = input("\n학습할 제품명을 정확히 입력하세요: ").strip()
+    df = df[df['name'] == selected_name]
 
     if df.empty:
-        print("\n[오류] 해당 제품에 대한 데이터가 없습니다.")
+        print("\n해당 제품에 대한 데이터가 없습니다.")
     else:
-        X, y = preprocess(df)  # 전처리 및 로그 변환
-        model = train_xgboost(X, y)  # 모델 학습
-
-        # 모델 저장 (제품명을 파일명에 포함)
+        X, y = preprocess(df)
+        model = train_xgboost(X, y)
         filename = f"xgb_model_{selected_name.replace(' ', '_')}.pkl"
         with open(filename, "wb") as f:
             pickle.dump(model, f)
-
-        print(f"\n[완료] 모델 학습 및 저장 완료 → {filename}")
+        print(f"\n모델 학습 및 저장 완료 : {filename}")
