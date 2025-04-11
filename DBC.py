@@ -71,7 +71,7 @@ table_mapping = {
     "Power.csv": "power_price"
 }
 
-# 2023 ~ 2026 폴더 순회
+# 2020-07 ~ 2025-02 폴더 순회
 if __name__ == "__main__":
     for year in range(2023, 2026):
         for month in range(1, 13):
