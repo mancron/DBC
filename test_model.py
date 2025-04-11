@@ -83,11 +83,12 @@ if __name__ == "__main__":
         "1": "vga_price",
         "2": "cpu_price",
         "3": "mboard_price",
-        "4": "power_price"
+        "4": "power_price",
+        "5": "ref_vga_stats"
     }
 
     print("예측할 제품의 카테고리를 선택하세요:")
-    print("1. VGA\n2. CPU\n3. MainBoard\n4. Power")
+    print("1. VGA\n2. CPU\n3. MainBoard\n4. Power\n5. MainBoard AVG")
     choice = input("번호 입력: ").strip()
 
     if choice not in table_options:
