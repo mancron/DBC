@@ -66,9 +66,9 @@ def insert_csv_to_db(file_path, table_name):
 # 파일 이름과 테이블 이름 매핑
 table_mapping = {
     "VGA.csv": "vga_price",
-    "CPU.csv": "cpu_price",
-    "MBoard.csv": "mboard_price",
-    "Power.csv": "power_price"
+    # "CPU.csv": "cpu_price",
+    # "MBoard.csv": "mboard_price",
+    # "Power.csv": "power_price"
 }
 
 # 2020-07 ~ 2025-02 폴더 순회
