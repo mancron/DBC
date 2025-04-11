@@ -22,7 +22,14 @@ def load_data(table_name):
     conn.close()
     return df
 
-# 전처리 (날짜 관련 피처 확장)
+def load_all_data(table_name):
+    conn = get_connection()
+    query = f"SELECT name, date, price, std_dev FROM {table_name}"
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df
+
+# 전처리 (개별 데이터 학습)
 def preprocess(df):
     df['date'] = pd.to_datetime(df['date'])
     df = df[df['price'] > 0].copy()
@@ -36,6 +43,25 @@ def preprocess(df):
     df['name'] = df['name'].astype('category').cat.codes
 
     features = ['name', 'date_int', 'year', 'month', 'day', 'dayofweek', 'weekofyear']
+    y_log = np.log(df['price'])
+
+    return df[features], y_log
+
+# 전처리 (평균값)
+def preprocess_avg(df):
+    df['date'] = pd.to_datetime(df['date'])
+    df = df[df['price'] > 0].copy()
+
+    df['year'] = df['date'].dt.year
+    df['month'] = df['date'].dt.month
+    df['day'] = df['date'].dt.day
+    df['dayofweek'] = df['date'].dt.dayofweek
+    df['weekofyear'] = df['date'].dt.isocalendar().week.astype(int)
+    df['date_int'] = df['date'].astype(int) / 10 ** 9
+    df['name'] = df['name'].astype('category').cat.codes
+
+    # 평균값과 표준편차 모두 활용
+    features = ['name', 'date_int', 'year', 'month', 'day', 'dayofweek', 'weekofyear', 'std_dev']
     y_log = np.log(df['price'])
 
     return df[features], y_log
@@ -89,7 +115,10 @@ if __name__ == "__main__":
         exit()
 
     table_name = table_options[choice]
-    df = load_data(table_name)
+    if (choice=='5'):
+        df = load_all_data(table_name)
+    else:
+        df = load_data(table_name)
     product_names = get_unique_product_names(table_name)
 
     print(f"\n선택된 카테고리 '{table_name}'의 제품 수: {len(product_names)}")
@@ -102,7 +131,10 @@ if __name__ == "__main__":
     if df.empty:
         print("\n해당 제품에 대한 데이터가 없습니다.")
     else:
-        X, y = preprocess(df)
+        if table_name == "ref_vga_stats":
+            X, y = preprocess_avg(df)
+        else:
+            X, y = preprocess(df)
         model = train_xgboost(X, y)
         filename = f"xgb_model_{selected_name.replace(' ', '_')}.pkl"
         with open(filename, "wb") as f:
