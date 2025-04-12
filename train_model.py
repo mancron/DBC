@@ -123,7 +123,7 @@ if __name__ == "__main__":
 
     print(f"\n선택된 카테고리 '{table_name}'의 제품 수: {len(product_names)}")
     for name in product_names:
-        print("-", name)
+        print(name)
 
     selected_name = input("\n학습할 제품명을 정확히 입력하세요: ").strip()
     df = df[df['name'] == selected_name]
