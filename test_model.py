@@ -41,11 +41,11 @@ def load_data(table_name):
     return df
 
 # ref_vga_stats 불러오기
-def load_ref_stats():
+def load_ref_stats(table_name):
     conn = get_connection()
-    df = pd.read_sql("SELECT name, date, std_dev FROM ref_vga_stats", conn)
+    query = f"SELECT name, date, std_dev FROM {table_name}"
+    df = pd.read_sql(query, conn)
     conn.close()
-    df['date'] = pd.to_datetime(df['date'])
     return df
 
 # 그래프 그리기 (개별 학습)
@@ -164,21 +164,18 @@ if __name__ == "__main__":
 
     table_options = {
         "1": "vga_price",
-        "2": "cpu_price",
-        "3": "mboard_price",
-        "4": "power_price",
-        "5": "ref_vga_stats"
+        "2": "ref_vga_stats"
     }
 
     print("예측할 제품의 카테고리를 선택하세요:")
-    print("1. VGA\n2. CPU\n3. MainBoard\n4. Power\n5. MainBoard AVG")
+    print("1. VGA\n2. MainBoard AVG")
     choice = input("번호 입력: ").strip()
 
     if choice not in table_options:
         print("올바른 번호를 선택하세요.")
         exit()
 
-    if choice == '5':
+    if choice == '2':
         print("\n예측할 VGA 제품 이름을 정확히 입력하세요:")
         product_name = input("제품 이름: ").strip()
 
@@ -190,7 +187,8 @@ if __name__ == "__main__":
 
         # 테이블에서 VGA 데이터 및 통계 데이터 불러오기
         vga_df = load_data("vga_price")
-        ref_df = load_ref_stats()
+        ref_name = table_options[choice]
+        ref_df = load_ref_stats(ref_name)
 
         if product_name not in vga_df['name'].unique():
             print(f"'{product_name}'는 vga_price 테이블에 존재하지 않습니다.")

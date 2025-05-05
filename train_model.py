@@ -11,7 +11,7 @@ def get_connection():
         host="localhost",
         user="root",
         password="0000",
-        database="danawa_crawler_data"
+        database="danawa_vga"
     )
 
 # 선택한 카테고리 테이블에서 데이터 불러오기
@@ -24,7 +24,7 @@ def load_data(table_name):
 
 def load_all_data(table_name):
     conn = get_connection()
-    query = f"SELECT name, date, price, std_dev FROM {table_name}"
+    query = f"SELECT name, date, avg_price, std_dev FROM {table_name}"
     df = pd.read_sql(query, conn)
     conn.close()
     return df
@@ -50,7 +50,7 @@ def preprocess(df):
 # 전처리 (평균값)
 def preprocess_avg(df):
     df['date'] = pd.to_datetime(df['date'])
-    df = df[df['price'] > 0].copy()
+    df = df[df['avg_price'] > 0].copy()
 
     df['year'] = df['date'].dt.year
     df['month'] = df['date'].dt.month
@@ -62,7 +62,7 @@ def preprocess_avg(df):
 
     # 평균값과 표준편차 모두 활용
     features = ['name', 'date_int', 'year', 'month', 'day', 'dayofweek', 'weekofyear', 'std_dev']
-    y_log = np.log(df['price'])
+    y_log = np.log(df['avg_price'])
 
     return df[features], y_log
 
@@ -100,14 +100,11 @@ def get_unique_product_names(table_name):
 if __name__ == "__main__":
     table_options = {
         "1": "vga_price",
-        "2": "cpu_price",
-        "3": "mboard_price",
-        "4": "power_price",
-        "5": "ref_vga_stats"
+        "2": "ref_vga_stats"
     }
 
     print("카테고리를 선택하세요:")
-    print("1. VGA\n2. CPU\n3. MainBoard\n4. Power\n5. MainBoard AVG")
+    print("1. VGA\n2. MainBoard AVG")
     choice = input("번호 입력: ").strip()
 
     if choice not in table_options:
@@ -115,7 +112,7 @@ if __name__ == "__main__":
         exit()
 
     table_name = table_options[choice]
-    if (choice=='5'):
+    if (choice=='2'):
         df = load_all_data(table_name)
     else:
         df = load_data(table_name)
