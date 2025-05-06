@@ -16,7 +16,7 @@ def make_future_features(start_date, future_dates, name_code=None, std_dev=None)
         df_future['std_dev'] = std_dev
     return df_future
 
-def plot_combined_prediction(df, df_ref, single_model, category_model, product_name, category_name, days=30):
+def draw(df, df_ref, single_model, category_model, product_name, category_name, days=30):
     df_prod = df[(df['name'] == product_name) & (df['price'] > 0)].copy()
     df_prod['date'] = pd.to_datetime(df_prod['date'])
     df_prod = df_prod.sort_values('date')

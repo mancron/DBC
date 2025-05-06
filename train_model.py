@@ -56,16 +56,16 @@ def train_xgboost(X, y):
 
     model = xgb.XGBRegressor(
         objective='reg:squarederror',
-        n_estimators=500,
-        learning_rate=0.07,
-        max_depth=5,
+        n_estimators=800,
+        learning_rate=0.09,
+        max_depth=6,
         subsample=0.8,
         colsample_bytree=0.8,
         gamma=0.8,
-        min_child_weight=4,
+        min_child_weight=3,
         random_state=42
     )
-    model.set_params(early_stopping_rounds=75)
+    model.set_params(early_stopping_rounds=100)
     model.fit(
         X_train, y_train,
         eval_set=[(X_val, y_val)],

@@ -1,6 +1,6 @@
 from db_conn import load_data, load_all_data, get_unique_product_names, extract_gpu_info
 from train_model import preprocess, preprocess_avg, train_xgboost
-from test_model import plot_combined_prediction
+from test_model import draw
 import matplotlib.pyplot as plt
 import platform
 import pickle
@@ -117,8 +117,8 @@ if __name__ == "__main__":
             category_model = pickle.load(f)
 
         print("\n예측 비교 시각화를 시작합니다...")
-        plot_combined_prediction(df, df_2, single_model, category_model, selected_name, tiered_name or refined_name,
-                                 days=days)
+        draw(df, df_2, single_model, category_model, selected_name, tiered_name or refined_name,
+             days=days)
     else:
         print("단일 또는 범주 모델 파일이 누락되어 시각화를 수행할 수 없습니다.")
         if not os.path.exists(model_path_single):
