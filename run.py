@@ -68,7 +68,7 @@ if __name__ == "__main__":
             pickle.dump(model, f)
         print(f"\n단일 모델 저장 완료: {filename}")
     else:
-        print("❌단일 모델 데이터 없음")
+        print("단일 모델 데이터 없음")
 
     # ✅ 2. 범주 or 통합 모델 학습
     tiered_name, tier = detect_tier(df, df_2, selected_name)

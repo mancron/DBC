@@ -44,23 +44,32 @@ def preprocess_avg(df):
 
 # 모델 학습
 def train_xgboost(X, y):
-    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+    # 최근 데이터에 더 큰 가중치 부여
+    X = X.copy()
+    max_time = X['date_int'].max()
+    min_time = X['date_int'].min()
+    X['weight'] = 1 + 9 * ((X['date_int'] - min_time) / (max_time - min_time))  # 1~10 사이 가중치
+
+    X_train, X_val, y_train, y_val, w_train, w_val = train_test_split(
+        X.drop(columns=['weight']), y, X['weight'], test_size=0.2, random_state=42
+    )
 
     model = xgb.XGBRegressor(
         objective='reg:squarederror',
-        n_estimators=400,
-        learning_rate=0.06,
+        n_estimators=500,
+        learning_rate=0.07,
         max_depth=5,
         subsample=0.8,
         colsample_bytree=0.8,
-        gamma=1,
-        min_child_weight=5,
+        gamma=0.8,
+        min_child_weight=4,
         random_state=42
     )
-    model.set_params(early_stopping_rounds=50)
+    model.set_params(early_stopping_rounds=75)
     model.fit(
         X_train, y_train,
         eval_set=[(X_val, y_val)],
+        sample_weight=w_train,  # 가중치 적용
         verbose=False
     )
     return model
