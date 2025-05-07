@@ -8,7 +8,6 @@ def make_future_features(start_date, future_dates, name_code=None, std_dev=None)
     df_future['year'] = df_future['date'].dt.year
     df_future['month'] = df_future['date'].dt.month
     df_future['day'] = df_future['date'].dt.day
-    df_future['dayofweek'] = df_future['date'].dt.dayofweek
     df_future['weekofyear'] = df_future['date'].dt.isocalendar().week.astype(int)
     if name_code is not None:
         df_future['name'] = name_code
@@ -38,7 +37,7 @@ def draw(df, df_ref, single_model, category_model, product_name, category_name, 
     future_dates = pd.date_range(df_prod['date'].max(), periods=days + 1, freq='D')[1:]
     name_code_single = df_prod['name'].astype('category').cat.codes.iloc[0]
     future_features_single = make_future_features(df_prod['date'].min(), future_dates, name_code=name_code_single)
-    required_features_single = ['name', 'date_int', 'year', 'month', 'day', 'dayofweek', 'weekofyear']
+    required_features_single = ['name', 'date_int', 'year', 'month', 'day', 'weekofyear']
     y_pred_single_log = single_model.predict(future_features_single[required_features_single])
     y_pred_single = np.exp(y_pred_single_log)
     plt.plot(future_dates, y_pred_single, label="단일 모델 예측", color='green')
@@ -51,7 +50,7 @@ def draw(df, df_ref, single_model, category_model, product_name, category_name, 
         avg_std_dev = df_ref_prod['std_dev'].mean() if 'std_dev' in df_ref_prod.columns else 0.0
         name_code_cat = df_ref_prod['name'].astype('category').cat.codes.iloc[0]
         future_features_category = make_future_features(df_ref_prod['date'].min(), future_dates, name_code=name_code_cat, std_dev=avg_std_dev)
-        required_features_cat = ['name', 'date_int', 'year', 'month', 'day', 'dayofweek', 'weekofyear', 'std_dev']
+        required_features_cat = ['name', 'date_int', 'year', 'month', 'day', 'weekofyear', 'std_dev']
         y_pred_ref_log = category_model.predict(future_features_category[required_features_cat])
         y_pred_ref = np.exp(y_pred_ref_log)
         plt.plot(future_dates, y_pred_ref, label="범주 모델 예측", color='orange')

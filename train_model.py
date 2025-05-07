@@ -12,12 +12,11 @@ def preprocess(df):
     df['year'] = df['date'].dt.year
     df['month'] = df['date'].dt.month
     df['day'] = df['date'].dt.day
-    df['dayofweek'] = df['date'].dt.dayofweek
     df['weekofyear'] = df['date'].dt.isocalendar().week.astype(int)
     df['date_int'] = df['date'].astype(int) / 10 ** 9
     df['name'] = df['name'].astype('category').cat.codes
 
-    features = ['name', 'date_int', 'year', 'month', 'day', 'dayofweek', 'weekofyear']
+    features = ['name', 'date_int', 'year', 'month', 'day', 'weekofyear']
     y_log = np.log(df['price'])
 
     return df[features], y_log
@@ -31,13 +30,12 @@ def preprocess_avg(df):
     df['year'] = df['date'].dt.year
     df['month'] = df['date'].dt.month
     df['day'] = df['date'].dt.day
-    df['dayofweek'] = df['date'].dt.dayofweek
     df['weekofyear'] = df['date'].dt.isocalendar().week.astype(int)
     df['date_int'] = df['date'].astype(int) / 10 ** 9
     df['name'] = df['name'].astype('category').cat.codes
 
     # 평균값과 표준편차 모두 활용
-    features = ['name', 'date_int', 'year', 'month', 'day', 'dayofweek', 'weekofyear', 'std_dev']
+    features = ['name', 'date_int', 'year', 'month', 'day', 'weekofyear', 'std_dev']
     y_log = np.log(df['avg_price'])
 
     return df[features], y_log
@@ -57,10 +55,10 @@ def train_xgboost(X, y):
     model = xgb.XGBRegressor(
         objective='reg:squarederror',
         n_estimators=800,
-        learning_rate=0.09,
+        learning_rate=0.1,
         max_depth=6,
         subsample=0.8,
-        colsample_bytree=0.8,
+        #colsample_bytree=0.8,
         gamma=0.8,
         min_child_weight=3,
         random_state=42
